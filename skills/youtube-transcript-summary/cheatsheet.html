@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>How Boris Uses Claude Code</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0b0b14;
+      color: #c8c8d4;
+      font-family: 'Inter', sans-serif;
+      font-size: 11px;
+      line-height: 1.45;
+      padding: 24px 20px 40px;
+      min-width: 900px;
+    }
+
+    /* ── HEADER ─────────────────────────────────────────── */
+    header {
+      text-align: center;
+      margin-bottom: 22px;
+    }
+    header h1 {
+      font-size: 18px;
+      font-weight: 700;
+      color: #e8673a;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    header .subtitle {
+      color: #6b6b88;
+      font-size: 9.5px;
+      margin-top: 4px;
+      letter-spacing: 0.06em;
+    }
+    .header-rule {
+      width: 60px;
+      height: 2px;
+      background: #e8673a;
+      margin: 8px auto 0;
+      border-radius: 2px;
+    }
+
+    /* ── GRID ───────────────────────────────────────────── */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      max-width: 1160px;
+      margin: 0 auto;
+    }
+    .span2 { grid-column: span 2; }
+    .span3 { grid-column: span 3; }
+
+    /* ── CARD ───────────────────────────────────────────── */
+    .card {
+      background: #13131f;
+      border: 1px solid #1e1e30;
+      border-radius: 6px;
+      padding: 10px 12px 12px;
+      position: relative;
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 9px;
+      padding-bottom: 7px;
+      border-bottom: 1px solid #1e1e30;
+    }
+    .card-num {
+      font-size: 8px;
+      font-weight: 700;
+      color: #e8673a;
+      background: rgba(232,103,58,0.12);
+      border: 1px solid rgba(232,103,58,0.3);
+      border-radius: 3px;
+      padding: 1px 5px;
+      letter-spacing: 0.04em;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .card-title {
+      font-size: 10px;
+      font-weight: 700;
+      color: #e8e8f5;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .card-icon {
+      margin-left: auto;
+      font-size: 13px;
+      opacity: 0.7;
+    }
+
+    /* ── ROWS ───────────────────────────────────────────── */
+    .row {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 3px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+    .row:last-child { border-bottom: none; }
+
+    .key {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9.5px;
+      font-weight: 600;
+      color: #f0943d;
+      white-space: nowrap;
+      flex-shrink: 0;
+      min-width: 110px;
+    }
+    .key.green  { color: #4ec994; }
+    .key.blue   { color: #5ba4f5; }
+    .key.purple { color: #c792ea; }
+    .key.red    { color: #f07178; }
+    .key.yellow { color: #ffcb6b; }
+    .key.dim    { color: #7878a0; }
+
+    .desc {
+      color: #9090ae;
+      font-size: 9.5px;
+      flex: 1;
+    }
+    .desc strong { color: #c8c8d4; font-weight: 600; }
+    .desc em     { color: #6b9ff8; font-style: normal; }
+
+    /* ── NOTICE / TIP BOXES ─────────────────────────────── */
+    .notice {
+      margin-top: 9px;
+      background: rgba(232,103,58,0.07);
+      border-left: 2px solid #e8673a;
+      border-radius: 0 3px 3px 0;
+      padding: 5px 8px;
+      font-size: 9px;
+      color: #b0b0c8;
+      line-height: 1.5;
+    }
+    .notice.green {
+      background: rgba(78,201,148,0.07);
+      border-left-color: #4ec994;
+    }
+    .notice.blue {
+      background: rgba(91,164,245,0.07);
+      border-left-color: #5ba4f5;
+    }
+    .notice.purple {
+      background: rgba(199,146,234,0.07);
+      border-left-color: #c792ea;
+    }
+    .notice .nt { color: #e8673a; font-weight: 700; }
+    .notice.green .nt  { color: #4ec994; }
+    .notice.blue  .nt  { color: #5ba4f5; }
+    .notice.purple .nt { color: #c792ea; }
+
+    /* ── SECTION SPACER ─────────────────────────────────── */
+    .section-label {
+      grid-column: span 3;
+      color: #3a3a56;
+      font-size: 8.5px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      padding: 4px 0 2px;
+      border-bottom: 1px solid #1a1a2a;
+    }
+
+    /* ── BADGE ROW ──────────────────────────────────────── */
+    .badge-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 7px;
+    }
+    .badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 8.5px;
+      padding: 2px 7px;
+      border-radius: 3px;
+      border: 1px solid;
+      white-space: nowrap;
+    }
+    .badge.orange { color: #f0943d; border-color: rgba(240,148,61,0.4); background: rgba(240,148,61,0.08); }
+    .badge.green  { color: #4ec994; border-color: rgba(78,201,148,0.4); background: rgba(78,201,148,0.08); }
+    .badge.blue   { color: #5ba4f5; border-color: rgba(91,164,245,0.4); background: rgba(91,164,245,0.08); }
+    .badge.purple { color: #c792ea; border-color: rgba(199,146,234,0.4); background: rgba(199,146,234,0.08); }
+    .badge.yellow { color: #ffcb6b; border-color: rgba(255,203,107,0.4); background: rgba(255,203,107,0.08); }
+
+    /* ── TABLE (for principles) ─────────────────────────── */
+    .principle {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+    .principle:last-child { border-bottom: none; }
+    .p-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      color: #e8673a;
+      width: 18px;
+      flex-shrink: 0;
+    }
+    .p-title {
+      font-weight: 700;
+      color: #e8e8f5;
+      font-size: 9.5px;
+      margin-bottom: 2px;
+    }
+    .p-desc { color: #7878a0; font-size: 9px; }
+
+    /* ── DIVIDER ────────────────────────────────────────── */
+    .divider {
+      height: 1px;
+      background: #1a1a28;
+      margin: 5px 0;
+    }
+
+    /* ── STAT ROW ───────────────────────────────────────── */
+    .stat-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    .stat {
+      flex: 1;
+      min-width: 60px;
+      background: rgba(232,103,58,0.06);
+      border: 1px solid rgba(232,103,58,0.2);
+      border-radius: 4px;
+      padding: 5px 8px;
+      text-align: center;
+    }
+    .stat .val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      font-weight: 700;
+      color: #e8673a;
+    }
+    .stat .lbl { font-size: 8px; color: #5a5a78; margin-top: 1px; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════ HEADER -->
+<header>
+  <h1>How Boris Uses Claude Code</h1>
+  <div class="subtitle">Boris Cherny · Creator &amp; Head of Claude Code at Anthropic · Sourced from 5 public threads + Lenny's Podcast (Feb 2026)</div>
+  <div class="header-rule"></div>
+</header>
+
+<!-- ═══════════════════════════════════════════════════════ GRID -->
+<div class="grid">
+
+  <!-- ── STATS BAR ───────────────────────────────── span 3 -->
+  <div class="card span3" style="padding: 10px 16px;">
+    <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+      <div style="font-size:9px; color:#5a5a78; text-transform:uppercase; letter-spacing:.1em; flex-shrink:0;">Boris's numbers (30-day sprint)</div>
+      <div class="stat-row" style="margin:0; flex:1;">
+        <div class="stat"><div class="val">259</div><div class="lbl">PRs landed</div></div>
+        <div class="stat"><div class="val">497</div><div class="lbl">commits</div></div>
+        <div class="stat"><div class="val">40k</div><div class="lbl">lines added</div></div>
+        <div class="stat"><div class="val">10–30</div><div class="lbl">PRs / day</div></div>
+        <div class="stat" style="border-color:rgba(78,201,148,.3); background:rgba(78,201,148,.06);">
+          <div class="val" style="color:#4ec994;">100%</div><div class="lbl">AI-written code</div>
+        </div>
+        <div class="stat" style="border-color:rgba(91,164,245,.3); background:rgba(91,164,245,.06);">
+          <div class="val" style="color:#5ba4f5;">0</div><div class="lbl">lines of SQL written</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════ ROW 1 ═══════════════════════════ -->
+  <div class="section-label">Session management &amp; parallelism</div>
+
+  <!-- 01 · PARALLEL SESSIONS -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-num">01</span>
+      <span class="card-title">Parallel Sessions</span>
+      <span class="card-icon">⚡</span>
+    </div>
+    <div class="row"><span class="key">Terminal tabs 1–5</span><span class="desc">5 local Claude Code instances, numbered tabs with <strong>OS notifications</strong> to know when input is needed</span></div>
+    <div class="row"><span class="key">claude.ai/code</span><span class="desc">5–10 additional web sessions running in parallel alongside local ones</span></div>
+    <div class="row"><span class="key green">Claude iOS app</span><span class="desc">Starts sessions from <strong>phone every morning</strong>, checks back from desktop later</span></div>
+    <div class="row"><span class="key yellow">& (background)</span><span class="desc">Backgrounds local sessions with <em>&amp;</em>, then manually kicks off in Chrome</span></div>
+    <div class="row"><span class="key purple">--teleport</span><span class="desc">Moves sessions between local terminal and web UI seamlessly</span></div>
+    <div class="notice"><span class="nt">Boris:</span> "I run 5 Claudes in parallel in my terminal... and 5–10 more on claude.ai/code"</div>
+  </div>
+
+  <!-- 02 · WORKTREES -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-num">02</span>
+      <span class="card-title">Git Worktrees</span>
+      <span class="card-icon">🌿</span>
+    </div>
+    <div class="row"><span class="key">claude --worktree</span><span class="desc">Starts Claude in its own isolated git worktree — <strong>no session cross-contamination</strong></span></div>
+    <div class="row"><span class="key green">--worktree &lt;name&gt;</span><span class="desc">Names the worktree explicitly, or lets Claude name it automatically</span></div>
+    <div class="row"><span class="key blue">3–5 at once</span><span class="desc">Team's #1 productivity unlock — one worktree per task, each with its own Claude session</span></div>
+    <div class="row"><span class="key yellow">za / zb / zc</span><span class="desc">Shell aliases to hop between worktrees in a <strong>single keystroke</strong></span></div>
+    <div class="row"><span class="key dim">analysis worktree</span><span class="desc">Dedicated worktree just for reading logs and running BigQuery queries</span></div>
+    <div class="notice green"><span class="nt">Team's top tip:</span> Spin up 3–5 git worktrees at once — "the single biggest productivity unlock"</div>
+  </div>
+
+  <!-- 03 · MODEL CHOICE -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-num">03</span>
+      <span class="card-title">Model Choice</span>
+      <span class="card-icon">🧠</span>
+    </div>
+    <div class="row"><span class="key">Opus 4.6</span><span class="desc">Uses the <strong>most capable model for everything</strong> — no exceptions</span></div>
+    <div class="row"><span class="key green">+ Extended Thinking</span><span class="desc">Always enables thinking mode alongside Opus</span></div>
+    <div class="row"><span class="key red">Not Sonnet</span><span class="desc">Despite being slower per-token, Opus requires <strong>less steering</strong> and makes fewer tool-use mistakes</span></div>
+    <div class="row"><span class="key yellow">Net result</span><span class="desc">Slower model → <strong>faster total wall-clock time</strong> because you fix fewer mistakes</span></div>
+    <div class="divider"></div>
+    <div class="row"><span class="key dim">Token cost</span><span class="desc">Never optimises for token cost — gives engineers <strong>unlimited tokens</strong></span></div>
+    <div class="notice blue"><span class="nt">Principle:</span> "A less intelligent model burns more tokens correcting mistakes than a smarter one spends getting it right"</div>
+  </div>
+
+  <!-- ════════════════════ ROW 2 ═══════════════════════════ -->
+  <div class="section-label">Planning &amp; execution workflow</div>
+
+  <!-- 04 · PLAN MODE -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-num">04</span>
+      <span class="card-title">Plan Mode</span>
+      <span class="card-icon">📋</span>
+    </div>
+    <div class="row"><span class="key">Shift+Tab ×2</span><span class="desc">Enters Plan mode — how <strong>most sessions start</strong> for any non-trivial task</span></div>
+    <div class="row"><span class="key green">Iterate on plan</span><span class="desc">Goes back and forth with Claude until the plan is solid before writing any code</span></div>
+    <div class="row"><span class="key blue">Auto-accept mode</span><span class="desc">Switches to auto-accept edits once plan is locked — Claude can usually <strong>1-shot the entire PR</strong></span></div>
+    <div class="row"><span class="key purple">Dual-Claude review</span><span class="desc">One Claude drafts the plan → a <strong>second Claude reviews</strong> it as "staff engineer"</span></div>
+    <div class="row"><span class="key yellow">Re-plan on failure</span><span class="desc">If execution goes sideways, switches <em>back</em> to plan mode and re-plans rather than patching</span></div>
+    <div class="notice"><span class="nt">Key insight:</span> "A good plan is really important — the execution follows naturally from it"</div>
+  </div>
+
+  <!-- 05 · CLAUDE.MD -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-num">05</span>
+      <span class="card-title">CLAUDE.md</span>
+      <span class="card-icon">📁</span>
+    </div>
+    <div class="row"><span class="key">/ (repo root)</span><span class="desc">Single shared <strong>CLAUDE.md</strong> checked into git — the team's institutional memory (~2,500 tokens)</span></div>
+    <div class="row"><span class="key green">Every mistake →</span><span class="desc">Adds every Claude error to CLAUDE.md so it <strong>never repeats</strong> across any future session</span></div>
+    <div class="row"><span class="key blue">After correction</span><span class="desc">Explicitly asks Claude to <strong>update CLAUDE.md itself</strong> to lock in the lesson</span></div>
+    <div class="row"><span class="key purple">PR reviews</span><span class="desc">Tags <em>@.claude</em> on coworkers' PRs → Claude updates CLAUDE.md as part of the PR diff</span></div>
+    <div class="row"><span class="key yellow">/install-github-action</span><span class="desc">Installs the Claude Code GitHub Action so CLAUDE.md updates happen automatically in CI</span></div>
+    <div class="row"><span class="key dim">Contents</span><span class="desc">Style conventions, design guidelines, PR template, common mistakes, project norms</span></div>
+    <div class="notice green"><span class="nt">Iterate ruthlessly:</span> "Prune CLAUDE.md over time until you see the mistake rate drop"</div>
+  </div>
+
+  <!-- 06 · VERIFICATION -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-num">06</span>
+      <span class="card-title">Verification Loop</span>
+      <span class="card-icon">✅</span>
+    </div>
+    <div class="row"><span class="key red">Most important tip</span><span class="desc">Always gives Claude <strong>a way to verify its own work</strong> through a feedback loop</span></div>
+    <div class="row"><span class="key green">2–3× quality</span><span class="desc">Having a verification loop multiplies output quality — Boris considers this non-negotiable</span></div>
+    <div class="row"><span class="key blue">Test suite</span><span class="desc">Points Claude at the test suite and tells it to make tests pass</span></div>
+    <div class="row"><span class="key purple">Browser testing</span><span class="desc">Claude opens Chrome extension, tests the UI, and <strong>iterates until UX feels right</strong></span></div>
+    <div class="row"><span class="key yellow">Phone simulator</span><span class="desc">Uses iOS simulator for mobile feature verification</span></div>
+    <div class="row"><span class="key dim">CI delegation</span><span class="desc">"Go fix the failing CI tests" — no micromanagement of <em>how</em></span></div>
+    <div class="notice blue"><span class="nt">Boris:</span> "Probably the most important thing to get great results out of Claude Code"</div>
+  </div>
+
+  <!-- ════════════════════ ROW 3 ═══════════════════════════ -->
+  <div class="section-label">Automation &amp; tooling configuration</div>
+
+  <!-- 07 · SLASH COMMANDS -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-num">07</span>
+      <span class="card-title">Slash Commands</span>
+      <span class="card-icon">⌨️</span>
+    </div>
+    <div class="row"><span class="key">.claude/commands/</span><span class="desc">All slash commands checked into git — available to <strong>both Boris and Claude</strong></span></div>
+    <div class="row"><span class="key green">/commit-push-pr</span><span class="desc">Most-used command — runs <strong>dozens of times daily</strong> by both Boris and Claude</span></div>
+    <div class="row"><span class="key blue">Inner-loop focus</span><span class="desc">Creates a slash command for <strong>every workflow repeated many times a day</strong></span></div>
+    <div class="row"><span class="key purple">Inline bash</span><span class="desc">Embeds bash in commands to precompute context (e.g. <em>git status, git diff</em>) — reduces back-and-forth</span></div>
+    <div class="row"><span class="key yellow">Team-shared</span><span class="desc">Committing to git means the entire team automatically gets the same commands</span></div>
+    <div class="notice"><span class="nt">Why:</span> "Saves from repeated prompting and makes it so Claude can use these workflows too"</div>
+  </div>
+
+  <!-- 08 · SUBAGENTS & CUSTOM AGENTS -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-num">08</span>
+      <span class="card-title">Subagents &amp; Custom Agents</span>
+      <span class="card-icon">🤖</span>
+    </div>
+    <div class="row"><span class="key">.claude/agents/</span><span class="desc">Custom agents defined as <strong>.md files</strong> — each has its own name, color, tools, permissions, model</span></div>
+    <div class="row"><span class="key green">code-simplifier</span><span class="desc">Runs after Claude finishes — cleans and simplifies generated code automatically</span></div>
+    <div class="row"><span class="key blue">verify-app</span><span class="desc">Detailed end-to-end testing instructions — runs as a standard post-PR step</span></div>
+    <div class="row"><span class="key purple">Ctrl+B</span><span class="desc">Launches a subagent <strong>in the background</strong> while continuing work in the main session</span></div>
+    <div class="row"><span class="key yellow">settings.json "agent"</span><span class="desc">Sets the <em>default agent</em> for the main conversation via <em>--agent</em> flag or settings field</span></div>
+    <div class="row"><span class="key dim">/agents</span><span class="desc">Browse and manage installed agents</span></div>
+    <div class="notice purple"><span class="nt">Think of subagents as:</span> automating the most common workflows that happen on every PR</div>
+  </div>
+
+  <!-- 09 · HOOKS -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-num">09</span>
+      <span class="card-title">Hooks</span>
+      <span class="card-icon">🔧</span>
+    </div>
+    <div class="row"><span class="key">PostToolUse</span><span class="desc">Auto-formats Claude's code <strong>after every file write or edit</strong></span></div>
+    <div class="row"><span class="key green">bun run format</span><span class="desc">Runs formatter silently (<em>|| true</em> to never block) — catches the last 10% Claude misses</span></div>
+    <div class="row"><span class="key blue">CI prevention</span><span class="desc">Eliminates formatting-related CI failures before they happen</span></div>
+    <div class="row"><span class="key purple">Strong-model routing</span><span class="desc">Team uses hooks to <strong>route sensitive checks to stronger models</strong> for additional scrutiny</span></div>
+    <div class="divider"></div>
+    <div class="row"><span class="key dim">Pattern</span><span class="desc">Claude generates well-formatted code ~90% of the time; hook handles the remaining 10%</span></div>
+  </div>
+
+  <!-- ════════════════════ ROW 4 ═══════════════════════════ -->
+  <div class="section-label">Permissions, MCP &amp; plugins</div>
+
+  <!-- 10 · PERMISSIONS -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-num">10</span>
+      <span class="card-title">Permissions</span>
+      <span class="card-icon">🔐</span>
+    </div>
+    <div class="row"><span class="key red">NEVER uses</span><span class="desc"><em>--dangerously-skip-permissions</em> — only exception is long-running tasks inside a sandboxed env</span></div>
+    <div class="row"><span class="key green">/permissions</span><span class="desc">Pre-allows known-safe commands to avoid interruptions: <em>bun run build:*</em>, <em>bun run test:*</em>, etc.</span></div>
+    <div class="row"><span class="key blue">.claude/settings.json</span><span class="desc">Permission config <strong>checked into git</strong> — shared automatically with the whole team</span></div>
+    <div class="row"><span class="key purple">Allow + Block lists</span><span class="desc">Maintains both allowlists and blocklists for fine-grained control</span></div>
+    <div class="row"><span class="key dim">Built-in safety</span><span class="desc">Permission system includes prompt injection detection, static analysis, and sandboxing</span></div>
+  </div>
+
+  <!-- 11 · MCP INTEGRATIONS -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-num">11</span>
+      <span class="card-title">MCP Integrations</span>
+      <span class="card-icon">🔌</span>
+    </div>
+    <div class="row"><span class="key">.mcp.json</span><span class="desc">MCP config checked into git — <strong>shared with the entire team</strong> automatically</span></div>
+    <div class="row"><span class="key green">Slack MCP</span><span class="desc">Claude searches and posts to Slack directly — paste a bug thread and say <em>"fix"</em></span></div>
+    <div class="row"><span class="key blue">BigQuery (bq CLI)</span><span class="desc">Claude runs analytics queries — Boris hasn't written SQL in <strong>6+ months</strong></span></div>
+    <div class="row"><span class="key purple">Sentry</span><span class="desc">Claude grabs error logs and stack traces from Sentry for debugging</span></div>
+    <div class="row"><span class="key yellow">Docker logs</span><span class="desc">Points Claude at Docker logs for distributed system troubleshooting</span></div>
+    <div class="row"><span class="key red">⚠ Prompt injection</span><span class="desc"><strong>Always review</strong> an MCP for prompt injection before installing — team rule</span></div>
+    <div class="notice green"><span class="nt">Rule:</span> Only use MCPs for things genuinely outside normal coding (Slack, analytics, error logs)</div>
+  </div>
+
+  <!-- 12 · PLUGINS -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-num">12</span>
+      <span class="card-title">Plugins</span>
+      <span class="card-icon">🧩</span>
+    </div>
+    <div class="row"><span class="key">/plugin</span><span class="desc">Browse and install from Anthropic's official plugin marketplace</span></div>
+    <div class="row"><span class="key green">LSPs</span><span class="desc">Installs language server plugins — available for <strong>every major language</strong></span></div>
+    <div class="row"><span class="key blue">Skills</span><span class="desc">In-repo skills (e.g. BigQuery skill) shared via settings.json — team-wide distribution</span></div>
+    <div class="row"><span class="key purple">Internal marketplace</span><span class="desc">Can create a <strong>company-internal plugin marketplace</strong> for team-specific tools</span></div>
+    <div class="row"><span class="key yellow">settings.json</span><span class="desc">Checks settings.json into codebase to <strong>auto-add marketplaces</strong> for new team members</span></div>
+    <div class="row"><span class="key dim">Custom hooks</span><span class="desc">Plugins can also install custom hooks (PostToolUse, PreToolUse, etc.)</span></div>
+  </div>
+
+  <!-- ════════════════════ ROW 5 ═══════════════════════════ -->
+  <div class="section-label">Terminal setup &amp; config</div>
+
+  <!-- 13 · TERMINAL CONFIG -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-num">13</span>
+      <span class="card-title">Terminal &amp; Config</span>
+      <span class="card-icon">💻</span>
+    </div>
+    <div class="row"><span class="key">/config</span><span class="desc">Sets light/dark mode, enables <strong>system notifications</strong>, toggles output style</span></div>
+    <div class="row"><span class="key green">/terminal-setup</span><span class="desc">Enables Shift+Enter for newlines in IDE terminals, Apple Terminal, Warp, Alacritty</span></div>
+    <div class="row"><span class="key blue">/vim</span><span class="desc">Enables vim keybindings mode</span></div>
+    <div class="row"><span class="key purple">/statusline</span><span class="desc">Shows <strong>context window usage</strong> and current git branch in terminal statusline</span></div>
+    <div class="row"><span class="key yellow">Ghostty</span><span class="desc">Team's recommended terminal for best rendering and color support</span></div>
+    <div class="row"><span class="key dim">Explanatory mode</span><span class="desc">Enables output style that explains <em>why</em> Claude made each change — great for learning</span></div>
+  </div>
+
+  <!-- 14 · LEARNING & EXPLORATION -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-num">14</span>
+      <span class="card-title">Learning &amp; Code Exploration</span>
+      <span class="card-icon">📖</span>
+    </div>
+    <div class="row"><span class="key green">HTML presentations</span><span class="desc">Asks Claude to generate <strong>visual HTML pages</strong> explaining unfamiliar codebases or concepts</span></div>
+    <div class="row"><span class="key blue">ASCII diagrams</span><span class="desc">Requests ASCII diagrams for protocols, system architecture, and data flows</span></div>
+    <div class="row"><span class="key purple">Spaced repetition</span><span class="desc">Uses Claude to build spaced-repetition skills from code reviews and learning sessions</span></div>
+    <div class="row"><span class="key yellow">Challenge Claude</span><span class="desc">Asks Claude to <strong>justify its changes</strong> and act as a reviewer — raises output quality</span></div>
+    <div class="row"><span class="key dim">Fresh rewrites</span><span class="desc">Asks for complete rewrites when first solution is mediocre — doesn't patch bad code</span></div>
+  </div>
+
+  <!-- 15 · BUG FIXING WORKFLOW -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-num">15</span>
+      <span class="card-title">Bug Fixing Workflow</span>
+      <span class="card-icon">🐛</span>
+    </div>
+    <div class="row"><span class="key green">Slack thread → fix</span><span class="desc">Pastes Slack bug thread into Claude, says <em>"fix"</em> — zero context switching</span></div>
+    <div class="row"><span class="key blue">Broad delegation</span><span class="desc">"Go fix the failing CI tests" — never micromanages <em>how</em> Claude fixes something</span></div>
+    <div class="row"><span class="key purple">Docker logs</span><span class="desc">Points Claude at Docker container logs for distributed system debugging</span></div>
+    <div class="row"><span class="key yellow">Sentry traces</span><span class="desc">Claude pulls error logs from Sentry and autonomously traces root causes</span></div>
+    <div class="row"><span class="key red">Write detailed specs</span><span class="desc">For complex bugs: writes a detailed spec removing all ambiguity <em>before</em> delegating</span></div>
+  </div>
+
+  <!-- ════════════════════ ROW 6 ═══════════════════════════ -->
+  <div class="section-label">Boris's 3 principles &amp; philosophy</div>
+
+  <!-- 16 · 3 PRINCIPLES -->
+  <div class="card span2">
+    <div class="card-header">
+      <span class="card-num">16</span>
+      <span class="card-title">Boris's 3 Principles (Shared with Every New Team Member)</span>
+      <span class="card-icon">🏆</span>
+    </div>
+    <div class="principle">
+      <span class="p-num">1.</span>
+      <div>
+        <div class="p-title">"What's better than doing something? Having Claude do it."</div>
+        <div class="p-desc">Default to delegating to Claude first. If a task can be done by Claude, it should be. This shifts the human role to directing, reviewing, and steering — not typing.</div>
+      </div>
+    </div>
+    <div class="principle">
+      <span class="p-num">2.</span>
+      <div>
+        <div class="p-title">"Underfund things a little bit."</div>
+        <div class="p-desc">Keeps teams deliberately lean so engineers are <em>forced</em> to Claude-ify their work rather than solving problems with headcount. Constraint drives creative AI adoption. "People are kind of forced to Claude-ify." Never cost-cut tokens — cost-cut people instead.</div>
+      </div>
+    </div>
+    <div class="principle">
+      <span class="p-num">3.</span>
+      <div>
+        <div class="p-title">"Encourage people to go faster."</div>
+        <div class="p-desc">Speed was Claude Code's original competitive advantage ("just me vs. a crowded market") and remains the core team value. To go faster: have Claude do more. Anthropic has seen 200% engineer productivity increase since adopting Claude Code internally.</div>
+      </div>
+    </div>
+    <div class="notice purple"><span class="nt">Boris's philosophy:</span> Claude is moving beyond writing code → it now looks through bug reports, telemetry, and feedback to <strong>suggest features to ship</strong></div>
+  </div>
+
+  <!-- 17 · WHAT BORIS FOCUSES ON -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-num">17</span>
+      <span class="card-title">What Boris Does With Freed Time</span>
+      <span class="card-icon">🎯</span>
+    </div>
+    <div class="row"><span class="key green">Talks to users</span><span class="desc">Invests the reclaimed time in direct user conversations and feedback loops</span></div>
+    <div class="row"><span class="key blue">System design</span><span class="desc">Thinks about big systems, architecture, and long-horizon technical strategy</span></div>
+    <div class="row"><span class="key purple">Team collaboration</span><span class="desc">More time for cross-team alignment and collaborative problem solving</span></div>
+    <div class="row"><span class="key yellow">Figuring out what to build</span><span class="desc">"The fun part" — product direction, user need discovery, roadmap thinking</span></div>
+    <div class="row"><span class="key dim">Build for +6 months</span><span class="desc">Designs products for model capabilities <strong>six months from now</strong>, not today</span></div>
+    <div class="notice"><span class="nt">Mindset shift:</span> "The fun part is figuring out what to build" — not writing the code</div>
+  </div>
+
+  <!-- ════════════════════ ROW 7 (QUICK REF) ═══════════════ -->
+  <div class="section-label">Quick reference</div>
+
+  <!-- 18 · KEY COMMANDS QUICK REF -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-num">18</span>
+      <span class="card-title">Key Commands at a Glance</span>
+      <span class="card-icon">⚡</span>
+    </div>
+    <div class="row"><span class="key">Shift+Tab ×2</span><span class="desc">Enter Plan mode</span></div>
+    <div class="row"><span class="key green">Ctrl+B</span><span class="desc">Launch subagent in background</span></div>
+    <div class="row"><span class="key blue">/config</span><span class="desc">Light/dark, notifications, output style</span></div>
+    <div class="row"><span class="key purple">/permissions</span><span class="desc">Pre-allow safe bash commands</span></div>
+    <div class="row"><span class="key yellow">/plugin</span><span class="desc">Browse &amp; install plugins (LSPs, MCPs, hooks)</span></div>
+    <div class="row"><span class="key">/agents</span><span class="desc">Browse &amp; manage custom agents</span></div>
+    <div class="row"><span class="key green">/terminal-setup</span><span class="desc">Enable Shift+Enter newlines</span></div>
+    <div class="row"><span class="key blue">/vim</span><span class="desc">Enable vim mode</span></div>
+    <div class="row"><span class="key purple">/statusline</span><span class="desc">Show context usage in terminal</span></div>
+    <div class="row"><span class="key yellow">/install-github-action</span><span class="desc">Enable @.claude on PRs in GitHub</span></div>
+  </div>
+
+  <!-- 19 · FILE STRUCTURE -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-num">19</span>
+      <span class="card-title">Repo File Structure Boris Uses</span>
+      <span class="card-icon">📂</span>
+    </div>
+    <div class="row"><span class="key green">CLAUDE.md</span><span class="desc">Institutional memory — shared project conventions, mistakes, style (repo root)</span></div>
+    <div class="row"><span class="key blue">.claude/commands/</span><span class="desc">Slash command definitions — checked into git, team-shared</span></div>
+    <div class="row"><span class="key purple">.claude/agents/</span><span class="desc">Custom agent .md files — each agent has its own config</span></div>
+    <div class="row"><span class="key yellow">.claude/settings.json</span><span class="desc">Permissions config + marketplace links — checked into git</span></div>
+    <div class="row"><span class="key">.mcp.json</span><span class="desc">MCP server configurations (Slack, BigQuery, Sentry) — checked into git</span></div>
+    <div class="divider"></div>
+    <div class="badge-row">
+      <span class="badge orange">CLAUDE.md</span>
+      <span class="badge green">.claude/commands/</span>
+      <span class="badge blue">.claude/agents/</span>
+      <span class="badge yellow">settings.json</span>
+      <span class="badge purple">.mcp.json</span>
+    </div>
+  </div>
+
+  <!-- 20 · DO / DON'T -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-num">20</span>
+      <span class="card-title">Boris's Do / Don't</span>
+      <span class="card-icon">📌</span>
+    </div>
+    <div class="row"><span class="key green">✓ Plan first</span><span class="desc">Always iterate on the plan before writing any code</span></div>
+    <div class="row"><span class="key green">✓ Verify everything</span><span class="desc">Give Claude a feedback loop — test suite, browser, simulator</span></div>
+    <div class="row"><span class="key green">✓ Share config in git</span><span class="desc">CLAUDE.md, settings.json, .mcp.json, commands/ all committed</span></div>
+    <div class="row"><span class="key green">✓ Use strongest model</span><span class="desc">Opus + thinking, always — speed savings outweigh token cost</span></div>
+    <div class="row"><span class="key green">✓ Broad delegation</span><span class="desc">Don't micromanage <em>how</em> — tell Claude <em>what</em> outcome you want</span></div>
+    <div class="divider"></div>
+    <div class="row"><span class="key red">✗ Skip permissions</span><span class="desc">Never uses --dangerously-skip-permissions in normal dev</span></div>
+    <div class="row"><span class="key red">✗ Optimise tokens</span><span class="desc">Never cost-cuts on tokens — unlimited tokens for the team</span></div>
+    <div class="row"><span class="key red">✗ Patch bad code</span><span class="desc">Asks for a fresh rewrite rather than layering fixes on mediocre solutions</span></div>
+    <div class="row"><span class="key red">✗ One session at a time</span><span class="desc">Always runs multiple parallel sessions — never sequential single-threading</span></div>
+  </div>
+
+</div><!-- /grid -->
+
+</body>
+</html>
