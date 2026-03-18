@@ -1,20 +1,12 @@
 ---
 name: auto-updater
-description: "Automatically update Clawdbot and all installed skills once daily via cron. Checks for updates, applies them, and delivers a summary of changes. Use when setting up automated update schedules, daily maintenance, or self-healing agent infrastructure."
+description: "Automatically update Clawdbot and all installed skills once daily via cron. Checks for updates, applies them, and delivers a summary of changes. Use when setting up automated update schedules, daily maintenance, auto-update routines, background maintenance, keeping skills updated automatically, scheduling updates, or self-healing agent infrastructure."
 metadata: {"version":"1.0.0","clawdbot":{"emoji":"🔄","os":["darwin","linux"]}}
 ---
 
 # Auto-Updater Skill
 
 Keep your Clawdbot and skills up to date automatically with daily update checks.
-
-## What It Does
-
-This skill sets up a daily cron job that:
-
-1. Updates Clawdbot itself (via `clawdbot doctor` or package manager)
-2. Updates all installed skills (via `clawdhub update --all`)
-3. Messages you with a summary of what was updated
 
 ## Setup
 
@@ -39,31 +31,27 @@ clawdbot cron add \
   --message "Run daily auto-updates: check for Clawdbot updates and update all skills. Report what was updated."
 ```
 
-### Configuration Options
-
-| Option | Default | Description |
-|--------|---------|-------------|
-| Time | 4:00 AM | When to run updates (use `--cron` to change) |
-| Timezone | System default | Set with `--tz` |
-| Delivery | Main session | Where to send the update summary |
+Then verify the job was created:
+```bash
+clawdbot cron list
+```
+Confirm "Daily Auto-Update" appears in the output before proceeding.
 
 ## How Updates Work
 
 ### Clawdbot Updates
 
-For **npm/pnpm/bun installs**:
+For **npm installs** (most common):
 ```bash
 npm update -g clawdbot@latest
-# or: pnpm update -g clawdbot@latest
-# or: bun update -g clawdbot@latest
 ```
 
-For **source installs** (git checkout):
+For other install methods (pnpm, bun, source/git), see the [Clawdbot Updating Guide](https://docs.clawd.bot/install/updating).
+
+After updating, run `clawdbot doctor` to apply any pending migrations:
 ```bash
-clawdbot update
+clawdbot doctor
 ```
-
-Always run `clawdbot doctor` after updating to apply migrations.
 
 ### Skill Updates
 
@@ -73,25 +61,16 @@ clawdhub update --all
 
 This checks all installed skills against the registry and updates any with new versions available.
 
-## Update Summary Format
+## Update Workflow (Full Sequence)
 
-After updates complete, you'll receive a message like:
+1. Update Clawdbot via your install method (see above)
+2. Run `clawdbot doctor` to apply migrations
+3. Run `clawdhub update --all` to update skills
+4. Review the delivered summary for any errors
 
-```
-🔄 Daily Auto-Update Complete
+## Update Summary
 
-**Clawdbot**: Updated to v2026.1.10 (was v2026.1.9)
-
-**Skills Updated (3)**:
-- prd: 2.0.3 → 2.0.4
-- browser: 1.2.0 → 1.2.1  
-- nano-banana-pro: 3.1.0 → 3.1.2
-
-**Skills Already Current (5)**:
-gemini, sag, things-mac, himalaya, peekaboo
-
-No issues encountered.
-```
+After updates complete, you'll receive a message listing the Clawdbot version change (if any), which skills were updated with their old and new versions, and which skills were already current. Any errors encountered will be included in the summary.
 
 ## Manual Commands
 
@@ -114,17 +93,16 @@ clawdbot --version
 
 ### Updates Not Running
 
-1. Verify cron is enabled: check `cron.enabled` in config
-2. Confirm Gateway is running continuously
-3. Check cron job exists: `clawdbot cron list`
+1. Verify the cron job exists: `clawdbot cron list`
+2. Confirm `cron.enabled` is `true` in config
+3. Confirm the Gateway is running continuously
 
 ### Update Failures
 
-If an update fails, the summary will include the error. Common fixes:
+The summary will include the error detail. Key fixes:
 
 - **Permission errors**: Ensure the Gateway user can write to skill directories
-- **Network errors**: Check internet connectivity
-- **Package conflicts**: Run `clawdbot doctor` to diagnose
+- **Package conflicts**: Run `clawdbot doctor` to diagnose and repair
 
 ### Disabling Auto-Updates
 
